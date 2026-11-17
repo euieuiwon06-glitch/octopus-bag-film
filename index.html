@@ -39,8 +39,8 @@
   /* 진행 바 */
   .progress { position: relative; height: 16px; cursor: pointer; touch-action: none; }
   .progress .track, .progress .buffered, .progress .played {
-    position: absolute; left: 0; top: 50%; height: 3px; transform: translateY(-50%);
-    border-radius: 2px; transition: height .12s;
+    position: absolute; left: 0; top: 50%; height: 5px; margin-top: -2.5px;
+    border-radius: 2px; transform: scaleY(.6); transition: transform .12s;
   }
   .progress .track { right: 0; background: rgba(255,255,255,.25); }
   .progress .buffered { width: 0; background: rgba(255,255,255,.45); }
@@ -51,7 +51,7 @@
     transition: transform .12s;
   }
   .progress:hover .track, .progress:hover .buffered, .progress:hover .played,
-  .progress.dragging .track, .progress.dragging .buffered, .progress.dragging .played { height: 5px; }
+  .progress.dragging .track, .progress.dragging .buffered, .progress.dragging .played { transform: scaleY(1); }
   .progress:hover .thumb, .progress.dragging .thumb { transform: translateY(-50%) scale(1); }
 
   .row { display: flex; align-items: center; gap: 4px; height: 44px; }
@@ -63,12 +63,14 @@
   button.icon svg { width: 100%; height: 100%; display: block; fill: currentColor; }
   button.icon:focus-visible, .switch:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
 
-  .volume { display: flex; align-items: center; }
+  .volume { display: grid; grid-template-columns: 40px 0fr; align-items: center; transition: grid-template-columns .2s; }
+  .volume .slot { overflow: hidden; min-width: 0; }
   .volume input {
-    width: 0; opacity: 0; transition: width .2s, opacity .2s; margin: 0;
+    display: block; width: 64px; margin: 0 8px 0 0; opacity: 0; transition: opacity .2s;
     accent-color: #fff; cursor: pointer;
   }
-  .volume:hover input, .volume:focus-within input { width: 64px; opacity: 1; margin-right: 8px; }
+  .volume:hover, .volume:focus-within { grid-template-columns: 40px 1fr; }
+  .volume:hover input, .volume:focus-within input { opacity: 1; }
   .time { padding: 0 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .time .dur { opacity: .8; }
 
@@ -91,7 +93,7 @@
   .big-play svg { width: 100%; height: 100%; fill: currentColor; }
   .player.paused .big-play { display: block; }
 
-  @media (max-width: 420px) { .volume input { display: none; } }
+  @media (max-width: 420px) { .volume .slot { display: none; } }
 </style>
 </head>
 <body>
@@ -112,7 +114,7 @@
         <button class="icon" id="mute" type="button" aria-label="소리 켜기">
           <svg viewBox="0 0 24 24"><path id="volIcon" d=""/></svg>
         </button>
-        <input id="vol" type="range" min="0" max="1" step="0.05" value="1" aria-label="음량">
+        <div class="slot"><input id="vol" type="range" min="0" max="1" step="0.05" value="1" aria-label="음량"></div>
       </div>
       <div class="time"><span id="cur">0:00</span> / <span class="dur" id="dur">0:00</span></div>
       <div class="spacer"></div>
