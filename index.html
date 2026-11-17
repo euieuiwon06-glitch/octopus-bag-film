@@ -8,53 +8,226 @@
 <meta name="theme-color" content="#fdf0af">
 <meta property="og:image" content="poster.jpg">
 <style>
+  :root { --accent: #ff0033; }
   html, body { margin: 0; height: 100%; overflow: hidden; }
-  body { background: #fdf0af; }
-  video {
-    position: fixed; inset: 0;
-    width: 100%; height: 100%;
-    object-fit: contain; background: transparent;
+  body { background: #fdf0af; display: grid; place-items: center; }
+
+  .player {
+    position: relative;
+    height: 100vh; height: 100dvh;
+    aspect-ratio: 716 / 1280;
+    max-width: 100vw;
+    background: #000;
+    overflow: hidden;
+    user-select: none;
   }
-  #sound {
-    position: fixed; right: 20px; bottom: 20px;
-    padding: 10px 16px; border: 1px solid rgba(31,38,150,.35); border-radius: 999px;
-    background: rgba(255,255,255,.55); color: #1f2696;
-    font: 500 12px/1 -apple-system, "Segoe UI", "Noto Sans KR", sans-serif;
-    letter-spacing: .12em; text-transform: uppercase;
-    cursor: pointer; backdrop-filter: blur(6px);
-    transition: opacity .4s, background .2s;
+  .player video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .player:fullscreen { height: 100%; width: 100%; aspect-ratio: auto; }
+  .player:fullscreen video { object-fit: contain; }
+
+  .controls {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 40px 12px 6px;
+    background: linear-gradient(transparent, rgba(0,0,0,.65));
+    color: #fff;
+    font: 500 14px/1 -apple-system, "Segoe UI", "Noto Sans KR", sans-serif;
+    transition: opacity .3s;
   }
-  #sound:hover { background: rgba(255,255,255,.85); }
-  #sound:focus-visible { outline: 2px solid #1f2696; outline-offset: 3px; }
-  body.idle #sound { opacity: 0; }
+  .player.idle .controls { opacity: 0; pointer-events: none; }
+  .player.idle { cursor: none; }
+
+  /* 진행 바 */
+  .progress { position: relative; height: 16px; cursor: pointer; touch-action: none; }
+  .progress .track, .progress .buffered, .progress .played {
+    position: absolute; left: 0; top: 50%; height: 3px; transform: translateY(-50%);
+    border-radius: 2px; transition: height .12s;
+  }
+  .progress .track { right: 0; background: rgba(255,255,255,.25); }
+  .progress .buffered { width: 0; background: rgba(255,255,255,.45); }
+  .progress .played { width: 0; background: var(--accent); }
+  .progress .thumb {
+    position: absolute; top: 50%; left: 0; width: 13px; height: 13px; margin-left: -6.5px;
+    border-radius: 50%; background: var(--accent); transform: translateY(-50%) scale(0);
+    transition: transform .12s;
+  }
+  .progress:hover .track, .progress:hover .buffered, .progress:hover .played,
+  .progress.dragging .track, .progress.dragging .buffered, .progress.dragging .played { height: 5px; }
+  .progress:hover .thumb, .progress.dragging .thumb { transform: translateY(-50%) scale(1); }
+
+  .row { display: flex; align-items: center; gap: 4px; height: 44px; }
+  .row .spacer { flex: 1; }
+  button.icon {
+    width: 40px; height: 40px; padding: 8px; border: 0; background: none; color: #fff;
+    cursor: pointer; border-radius: 6px; flex: none;
+  }
+  button.icon svg { width: 100%; height: 100%; display: block; fill: currentColor; }
+  button.icon:focus-visible, .switch:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+
+  .volume { display: flex; align-items: center; }
+  .volume input {
+    width: 0; opacity: 0; transition: width .2s, opacity .2s; margin: 0;
+    accent-color: #fff; cursor: pointer;
+  }
+  .volume:hover input, .volume:focus-within input { width: 64px; opacity: 1; margin-right: 8px; }
+  .time { padding: 0 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .time .dur { opacity: .8; }
+
+  /* 반복 재생 스위치 */
+  .switch {
+    position: relative; width: 36px; height: 20px; margin: 0 8px; padding: 0; border: 0;
+    border-radius: 999px; background: rgba(255,255,255,.3); cursor: pointer; flex: none;
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+    border-radius: 50%; background: #fff; transition: transform .2s;
+  }
+  .switch[aria-checked="true"] { background: rgba(255,255,255,.55); }
+  .switch[aria-checked="true"]::after { transform: translateX(16px); }
+
+  .big-play {
+    position: absolute; inset: 0; margin: auto; width: 72px; height: 72px; border: 0; border-radius: 50%;
+    background: rgba(0,0,0,.45); color: #fff; cursor: pointer; display: none; padding: 18px;
+  }
+  .big-play svg { width: 100%; height: 100%; fill: currentColor; }
+  .player.paused .big-play { display: block; }
+
+  @media (max-width: 420px) { .volume input { display: none; } }
 </style>
 </head>
 <body>
-<video id="film" src="film.mp4" poster="poster.jpg" autoplay muted loop playsinline preload="auto"></video>
-<button id="sound" type="button" aria-pressed="false">Sound off</button>
+<div class="player paused" id="player">
+  <video id="film" src="film.mp4" poster="poster.jpg" autoplay muted loop playsinline preload="auto"></video>
+  <button class="big-play" id="bigPlay" type="button" aria-label="재생">
+    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+  </button>
+  <div class="controls" id="controls">
+    <div class="progress" id="progress" role="slider" aria-label="재생 위치" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="track"></div><div class="buffered" id="buffered"></div><div class="played" id="played"></div><div class="thumb" id="thumb"></div>
+    </div>
+    <div class="row">
+      <button class="icon" id="play" type="button" aria-label="재생">
+        <svg viewBox="0 0 24 24"><path id="playIcon" d="M8 5v14l11-7z"/></svg>
+      </button>
+      <div class="volume">
+        <button class="icon" id="mute" type="button" aria-label="소리 켜기">
+          <svg viewBox="0 0 24 24"><path id="volIcon" d=""/></svg>
+        </button>
+        <input id="vol" type="range" min="0" max="1" step="0.05" value="1" aria-label="음량">
+      </div>
+      <div class="time"><span id="cur">0:00</span> / <span class="dur" id="dur">0:00</span></div>
+      <div class="spacer"></div>
+      <button class="switch" id="loop" type="button" role="switch" aria-checked="true" aria-label="반복 재생" title="반복 재생"></button>
+      <button class="icon" id="fs" type="button" aria-label="전체 화면">
+        <svg viewBox="0 0 24 24"><path id="fsIcon" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
 <script>
-  const v = document.getElementById('film');
-  const btn = document.getElementById('sound');
+  const $ = id => document.getElementById(id);
+  const v = $('film'), player = $('player');
+  const ICON = {
+    play: 'M8 5v14l11-7z',
+    pause: 'M6 19h4V5H6v14zm8-14v14h4V5h-4z',
+    volOn: 'M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z',
+    volLow: 'M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z',
+    volOff: 'M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.8 8.8 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z',
+    fsOn: 'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z',
+    fsOff: 'M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z'
+  };
+  const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 
-  function render() {
-    btn.textContent = v.muted ? 'Sound off' : 'Sound on';
-    btn.setAttribute('aria-pressed', String(!v.muted));
+  function renderPlay() {
+    const paused = v.paused;
+    $('playIcon').setAttribute('d', paused ? ICON.play : ICON.pause);
+    $('play').setAttribute('aria-label', paused ? '재생' : '일시정지');
+    player.classList.toggle('paused', paused);
   }
+  function renderVol() {
+    const off = v.muted || v.volume === 0;
+    $('volIcon').setAttribute('d', off ? ICON.volOff : v.volume < .5 ? ICON.volLow : ICON.volOn);
+    $('mute').setAttribute('aria-label', off ? '소리 켜기' : '음소거');
+    $('vol').value = off ? 0 : v.volume;
+  }
+  function renderTime() {
+    const d = v.duration || 0, p = d ? v.currentTime / d * 100 : 0;
+    $('played').style.width = p + '%';
+    $('thumb').style.left = p + '%';
+    $('cur').textContent = fmt(v.currentTime);
+    $('dur').textContent = fmt(d);
+    $('progress').setAttribute('aria-valuenow', Math.round(p));
+    if (d && v.buffered.length) $('buffered').style.width = (v.buffered.end(v.buffered.length - 1) / d * 100) + '%';
+  }
+
+  const toggle = () => { v.paused ? v.play().catch(() => {}) : v.pause(); };
+  $('play').onclick = toggle;
+  $('bigPlay').onclick = toggle;
+  v.addEventListener('click', toggle);
+  ['play', 'pause'].forEach(e => v.addEventListener(e, () => { renderPlay(); wake(); }));
+  ['timeupdate', 'loadedmetadata', 'progress', 'durationchange'].forEach(e => v.addEventListener(e, renderTime));
+  v.addEventListener('volumechange', renderVol);
+
+  $('mute').onclick = () => {
+    if (v.muted || v.volume === 0) { v.muted = false; if (v.volume === 0) v.volume = 1; }
+    else v.muted = true;
+  };
+  $('vol').oninput = e => { v.volume = +e.target.value; v.muted = v.volume === 0; };
+
+  $('loop').onclick = () => {
+    v.loop = !v.loop;
+    $('loop').setAttribute('aria-checked', String(v.loop));
+  };
+
+  // 진행 바 클릭·드래그
+  const bar = $('progress');
+  function seek(x) {
+    const r = bar.getBoundingClientRect();
+    const t = Math.min(1, Math.max(0, (x - r.left) / r.width));
+    if (v.duration) { v.currentTime = t * v.duration; renderTime(); }
+  }
+  bar.addEventListener('pointerdown', e => {
+    bar.setPointerCapture(e.pointerId); bar.classList.add('dragging'); seek(e.clientX);
+  });
+  bar.addEventListener('pointermove', e => { if (bar.classList.contains('dragging')) seek(e.clientX); });
+  ['pointerup', 'pointercancel'].forEach(t => bar.addEventListener(t, () => bar.classList.remove('dragging')));
+  bar.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') { v.currentTime = Math.min(v.duration, v.currentTime + 1); e.preventDefault(); }
+    if (e.key === 'ArrowLeft') { v.currentTime = Math.max(0, v.currentTime - 1); e.preventDefault(); }
+  });
+
+  // 전체 화면
+  $('fs').onclick = () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (player.requestFullscreen) player.requestFullscreen();
+    else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+  };
+  document.addEventListener('fullscreenchange', () => {
+    const on = !!document.fullscreenElement;
+    $('fsIcon').setAttribute('d', on ? ICON.fsOff : ICON.fsOn);
+    $('fs').setAttribute('aria-label', on ? '전체 화면 종료' : '전체 화면');
+  });
+
+  // 키보드: 스페이스 재생, M 음소거, F 전체 화면
+  addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === ' ' && e.target === document.body) { e.preventDefault(); toggle(); }
+    if (e.key === 'm' || e.key === 'M') $('mute').click();
+    if (e.key === 'f' || e.key === 'F') $('fs').click();
+  });
+
+  // 조작이 없으면 조절 바 숨김(재생 중일 때만)
+  let t;
+  function wake() {
+    player.classList.remove('idle');
+    clearTimeout(t);
+    t = setTimeout(() => { if (!v.paused && !bar.classList.contains('dragging')) player.classList.add('idle'); }, 2500);
+  }
+  ['mousemove', 'touchstart', 'keydown', 'pointerdown'].forEach(e => player.addEventListener(e, wake, { passive: true }));
 
   // 소리 켠 채로 자동재생을 먼저 시도하고, 브라우저가 막으면 음소거로 재생
   v.muted = false;
-  v.play().catch(() => { v.muted = true; v.play().catch(() => {}); }).finally(render);
-
-  btn.addEventListener('click', () => { v.muted = !v.muted; v.play().catch(() => {}); render(); });
-
-  let t;
-  function wake() {
-    document.body.classList.remove('idle');
-    clearTimeout(t);
-    t = setTimeout(() => document.body.classList.add('idle'), 2500);
-  }
-  ['mousemove', 'touchstart', 'keydown'].forEach(e => addEventListener(e, wake, { passive: true }));
-  wake();
+  v.play().catch(() => { v.muted = true; v.play().catch(() => {}); }).finally(() => { renderPlay(); renderVol(); });
+  renderPlay(); renderVol(); renderTime(); wake();
 </script>
 </body>
 </html>
