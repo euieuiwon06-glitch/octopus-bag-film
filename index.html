@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#fdf0af">
 <meta property="og:image" content="poster.jpg">
 <style>
-  :root { --accent: #ff0033; }
+  :root { --accent: #fff; }
   html, body { margin: 0; height: 100%; overflow: hidden; }
   body { background: #fdf0af; display: grid; place-items: center; }
 
@@ -27,26 +27,26 @@
 
   .controls {
     position: absolute; left: 0; right: 0; bottom: 0;
-    padding: 40px 12px 6px;
+    padding: 28px 8px 2px;
     background: linear-gradient(transparent, rgba(0,0,0,.65));
     color: #fff;
-    font: 500 14px/1 -apple-system, "Segoe UI", "Noto Sans KR", sans-serif;
+    font: 500 12px/1 -apple-system, "Segoe UI", "Noto Sans KR", sans-serif;
     transition: opacity .3s;
   }
   .player.idle .controls { opacity: 0; pointer-events: none; }
   .player.idle { cursor: none; }
 
   /* 진행 바 */
-  .progress { position: relative; height: 16px; cursor: pointer; touch-action: none; }
+  .progress { position: relative; height: 12px; cursor: pointer; touch-action: none; }
   .progress .track, .progress .buffered, .progress .played {
-    position: absolute; left: 0; top: 50%; height: 5px; margin-top: -2.5px;
-    border-radius: 2px; transform: scaleY(.6); transition: transform .12s;
+    position: absolute; left: 0; top: 50%; height: 4px; margin-top: -2px;
+    border-radius: 2px; transform: scaleY(.5); transition: transform .12s;
   }
-  .progress .track { right: 0; background: rgba(255,255,255,.25); }
-  .progress .buffered { width: 0; background: rgba(255,255,255,.45); }
+  .progress .track { right: 0; background: rgba(255,255,255,.2); }
+  .progress .buffered { width: 0; background: rgba(255,255,255,.38); }
   .progress .played { width: 0; background: var(--accent); }
   .progress .thumb {
-    position: absolute; top: 50%; left: 0; width: 13px; height: 13px; margin-left: -6.5px;
+    position: absolute; top: 50%; left: 0; width: 10px; height: 10px; margin-left: -5px;
     border-radius: 50%; background: var(--accent); transform: translateY(-50%) scale(0);
     transition: transform .12s;
   }
@@ -54,41 +54,41 @@
   .progress.dragging .track, .progress.dragging .buffered, .progress.dragging .played { transform: scaleY(1); }
   .progress:hover .thumb, .progress.dragging .thumb { transform: translateY(-50%) scale(1); }
 
-  .row { display: flex; align-items: center; gap: 4px; height: 44px; }
+  .row { display: flex; align-items: center; gap: 2px; height: 32px; }
   .row .spacer { flex: 1; }
   button.icon {
-    width: 40px; height: 40px; padding: 8px; border: 0; background: none; color: #fff;
+    width: 30px; height: 30px; padding: 6px; border: 0; background: none; color: #fff;
     cursor: pointer; border-radius: 6px; flex: none;
   }
   button.icon svg { width: 100%; height: 100%; display: block; fill: currentColor; }
   button.icon:focus-visible, .switch:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
 
-  .volume { display: grid; grid-template-columns: 40px 0fr; align-items: center; transition: grid-template-columns .2s; }
+  .volume { display: grid; grid-template-columns: 30px 0fr; align-items: center; transition: grid-template-columns .2s; }
   .volume .slot { overflow: hidden; min-width: 0; }
   .volume input {
-    display: block; width: 64px; margin: 0 8px 0 0; opacity: 0; transition: opacity .2s;
+    display: block; width: 52px; margin: 0 6px 0 0; opacity: 0; transition: opacity .2s;
     accent-color: #fff; cursor: pointer;
   }
-  .volume:hover, .volume:focus-within { grid-template-columns: 40px 1fr; }
+  .volume:hover, .volume:focus-within { grid-template-columns: 30px 1fr; }
   .volume:hover input, .volume:focus-within input { opacity: 1; }
-  .time { padding: 0 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .time { padding: 0 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .time .dur { opacity: .8; }
 
   /* 반복 재생 스위치 */
   .switch {
-    position: relative; width: 36px; height: 20px; margin: 0 8px; padding: 0; border: 0;
+    position: relative; width: 28px; height: 16px; margin: 0 6px; padding: 0; border: 0;
     border-radius: 999px; background: rgba(255,255,255,.3); cursor: pointer; flex: none;
   }
   .switch::after {
-    content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+    content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px;
     border-radius: 50%; background: #fff; transition: transform .2s;
   }
   .switch[aria-checked="true"] { background: rgba(255,255,255,.55); }
-  .switch[aria-checked="true"]::after { transform: translateX(16px); }
+  .switch[aria-checked="true"]::after { transform: translateX(12px); }
 
   .big-play {
-    position: absolute; inset: 0; margin: auto; width: 72px; height: 72px; border: 0; border-radius: 50%;
-    background: rgba(0,0,0,.45); color: #fff; cursor: pointer; display: none; padding: 18px;
+    position: absolute; inset: 0; margin: auto; width: 56px; height: 56px; border: 0; border-radius: 50%;
+    background: rgba(0,0,0,.45); color: #fff; cursor: pointer; display: none; padding: 14px;
   }
   .big-play svg { width: 100%; height: 100%; fill: currentColor; }
   .player.paused .big-play { display: block; }
